@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // For encoding JSON
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -41,22 +42,36 @@ class _MyHomePageState extends State<MyHomePage> {
   //2. Constructor
 
   //3. Method
+  @override
+  void initState() {
+    // Call _getToken as soon as the widget is initialized
+    _getToken();
+  }
+
+  // Method to retrieve the token from SharedPreferences
+  Future<void> _getToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('userToken');
+    print('Stored Token: $token');
+  }
+
+  // Save login information in shared_preferences
+  Future<void> _saveLoginInfo(String resData) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userToken', resData); // Store token
+  }
 
   void _handleSubmit() async {
     var userinputText = _usernametextController.text;
     var passinputText = _passtextController.text;
-    var cpassinputText = _cpasstextController.text;
     // Perform any action with the input (e.g., print it or update the UI)
     print('Input Text: $userinputText');
     print('Input Text: $passinputText');
-    print('Input Text: $cpassinputText');
-
-    var url = Uri.parse('http://localhost:1337/api/auth/local/register');
+    var url = Uri.parse('http://localhost:1337/api/auth/local');
     //Let preparet the payload
     var payload = jsonEncode({
-      "username": userinputText,
-      "email": passinputText,
-      "password": cpassinputText
+      "identifier": userinputText,
+      "password": passinputText,
     });
     try {
       // Make the POST request
@@ -68,12 +83,18 @@ class _MyHomePageState extends State<MyHomePage> {
       // Check if the request was successful
       if (response.statusCode == 200 || response.statusCode == 201) {
         //Show alert for
+        var responseData = jsonDecode(response.body);
+        await _saveLoginInfo(responseData); // Save token locally
+        // Save the respone in SharedPreferences
+        //SharedPreferences prefs = await SharedPreferences.getInstance();
+        //await prefs.setString('userData', responseData); // Store token
+
         showDialog(
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text("User Registered Successfully"),
-              content: Text("User Registered Successfully"),
+              title: Text("User Logged In Successfully"),
+              content: Text("User Logged In Successfully"),
               actions: <Widget>[
                 TextButton(
                   child: Text("OK"),
@@ -87,6 +108,23 @@ class _MyHomePageState extends State<MyHomePage> {
         );
         print('User registered Successfully');
       } else {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text("User Login Failed"),
+              content: Text("Please enter valid credentials"),
+              actions: <Widget>[
+                TextButton(
+                  child: Text("OK"),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                ),
+              ],
+            );
+          },
+        );
         print('User registration Failed');
       }
     } catch (e) {
@@ -121,13 +159,7 @@ class _MyHomePageState extends State<MyHomePage> {
               labelText: 'Enter your password',
               border: OutlineInputBorder(),
             ),
-          ),
-          TextField(
-            controller: _cpasstextController,
-            decoration: const InputDecoration(
-              labelText: 'Enter your confirm password',
-              border: OutlineInputBorder(),
-            ),
+            obscureText: true, // This makes it a password field
           ),
           // Submit Button (OK2)
           TextButton(
