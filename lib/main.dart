@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // For encoding JSON
+import 'dart:convert'; // jsonEncode/jsonDecode
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: "/.env", mergeWith: {
+    'TEST_VAR': '5',
+  }); // mergeWith optional, you can include Platform.environment for Mobile/Desktop app
   runApp(const MyApp());
 }
 
@@ -44,6 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
   //3. Method
   @override
   void initState() {
+    //After page load
     // Call _getToken as soon as the widget is initialized
     _getToken();
   }
@@ -58,7 +63,9 @@ class _MyHomePageState extends State<MyHomePage> {
   // Save login information in shared_preferences
   Future<void> _saveLoginInfo(String resData) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userToken', resData); // Store token
+    await prefs.setString('userToken', jsonEncode(resData)); // Store token
+
+    _getToken();
   }
 
   void _handleSubmit() async {
@@ -67,7 +74,9 @@ class _MyHomePageState extends State<MyHomePage> {
     // Perform any action with the input (e.g., print it or update the UI)
     print('Input Text: $userinputText');
     print('Input Text: $passinputText');
-    var url = Uri.parse('http://localhost:1337/api/auth/local');
+    // Get the base URL from the .env file
+    var baseUrl = dotenv.env['BASE_URL'];
+    var url = Uri.parse('$baseUrl/api/auth/local');
     //Let preparet the payload
     var payload = jsonEncode({
       "identifier": userinputText,
@@ -83,8 +92,8 @@ class _MyHomePageState extends State<MyHomePage> {
       // Check if the request was successful
       if (response.statusCode == 200 || response.statusCode == 201) {
         //Show alert for
-        var responseData = jsonDecode(response.body);
-        await _saveLoginInfo(responseData); // Save token locally
+        //var responseData = jsonDecode(response.body);
+        await _saveLoginInfo(response.body); // Save token locally
         // Save the respone in SharedPreferences
         //SharedPreferences prefs = await SharedPreferences.getInstance();
         //await prefs.setString('userData', responseData); // Store token
